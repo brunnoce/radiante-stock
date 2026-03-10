@@ -7,6 +7,9 @@ import sharp from 'sharp'
 
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { Categorias } from './collections/Categorias'
+import { Bebidas } from './collections/Bebidas'
+import { Movimientos } from './collections/Movimientos'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -17,8 +20,11 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    components: {
+      afterNavLinks: ['@/components/admin/frontend-nav-links#FrontendNavLinks'],
+    },
   },
-  collections: [Users, Media],
+  collections: [Users, Media, Categorias, Bebidas, Movimientos],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

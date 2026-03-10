@@ -1,67 +1,145 @@
-# Payload Blank Template
+# Radiante Stock
 
-This template comes configured with the bare minimum to get started on anything you need.
+App de control de stock de bebidas para Radiante Restaurante.
 
-## Quick start
+## Stack
 
-This template can be deployed directly from our Cloud hosting and it will setup MongoDB and cloud S3 object storage for media.
+- **Framework**: Next.js 15 (App Router) + React 19
+- **Backend/CMS**: Payload 3.79 (admin en `/admin`)
+- **Base de datos**: PostgreSQL
+- **UI**: Tailwind v4 + shadcn/ui (new-york) + lucide-react
+- **Server Actions**: next-safe-action v8 + Zod v4 + React Hook Form
+- **Auth**: JWT en cookie httpOnly, decodificado en middleware
+- **Package manager**: pnpm
 
-## Quick Start - local setup
+## Setup
 
-To spin up this template locally, follow these steps:
+```bash
+cp .env.example .env   # completar DATABASE_URL y PAYLOAD_SECRET
+pnpm install
+pnpm dev               # http://localhost:3000
+```
 
-### Clone
+### Variables de entorno
 
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
+| Variable | Descripcion |
+|---|---|
+| `DATABASE_URL` | Connection string de PostgreSQL |
+| `PAYLOAD_SECRET` | Secreto para firmar JWT — cualquier string largo y random |
 
-### Development
+## Estructura del proyecto
 
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URL` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
+```
+src/
+├── app/
+│   ├── (frontend)/          # Rutas del frontend
+│   │   ├── (auth)/          #   Grupo sin nav
+│   │   │   └── login/       #     Login (email o username)
+│   │   ├── (app)/           #   Grupo con nav
+│   │   │   ├── page.tsx     #     Vista General
+│   │   │   ├── stock/       #     Gestion de stock (ajuste rapido + ingreso)
+│   │   │   └── historial/   #     Historial de movimientos
+│   │   ├── layout.tsx       #   Layout raiz (fuente, metadata, toaster)
+│   │   └── globals.css      #   Tailwind v4 + CSS vars + tema
+│   │
+│   ├── (payload)/           # Admin panel y API de Payload (no tocar)
+│   └── services/            # Logica de negocio
+│       └── users.service.ts #   Login (email o username)
+│
+├── collections/             # Schemas de Payload
+│   ├── Users.ts             #   name, username, email, auth
+│   ├── Media.ts             #   Uploads
+│   ├── Categorias.ts        #   Nombre unico
+│   ├── Bebidas.ts           #   nombre, categoria (rel), stock
+│   └── Movimientos.ts       #   bebida, tipo (ingreso/egreso), cantidad, usuario
+│
+├── components/
+│   ├── Nav.tsx              # Nav responsive con logout
+│   ├── StockManager.tsx     # Ajuste rapido de stock (+/- por bebida)
+│   ├── BulkIngresoForm.tsx  # Ingreso de mercaderia en bulk
+│   ├── admin/               # Componentes custom del admin de Payload
+│   │   └── frontend-nav-links.tsx  # Links al frontend desde el admin
+│   └── ui/                  # Componentes shadcn (no editar a mano)
+│
+├── lib/
+│   ├── payload.ts           # Singleton de Payload
+│   ├── safe-action-client.ts  # Action client base (logging, error handling)
+│   ├── safe-actions.ts      # Action client autenticado (inyecta user en ctx)
+│   └── utils.ts             # cn() para clases de Tailwind
+│
+├── middleware.ts            # Proteccion de rutas por JWT (sin DB)
+├── payload.config.ts        # Config central de Payload
+└── payload-types.ts         # Auto-generado — NO editar a mano
+```
 
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+## Flujo de autenticacion
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+1. El usuario hace login en `/login` (email o username + password)
+2. El server action llama a Payload, obtiene JWT y lo guarda en cookie httpOnly
+3. `middleware.ts` decodifica el JWT (sin verificar firma — es Edge Runtime) y protege rutas:
+   - `/`, `/stock`, `/historial` — requiere estar autenticado
+   - `/login` — si ya esta autenticado, redirige a `/`
+4. Las pages del server validan con `payload.auth({ headers })` (verificacion real)
 
-#### Docker (Optional)
+## Colecciones
 
-If you prefer to use Docker for local development instead of a local MongoDB instance, the provided docker-compose.yml file can be used.
+| Coleccion | Descripcion |
+|---|---|
+| **Users** | Usuarios con auth (email, username, name). Se crean desde `/admin` |
+| **Categorias** | Tipos de bebida (Fernet, Gaseosa, Vino, etc). Se gestionan desde `/admin` |
+| **Bebidas** | Cada bebida con su categoria y stock actual |
+| **Movimientos** | Registro de cada ingreso/egreso con stock anterior y resultante |
 
-To do so, follow these steps:
+## Comandos utiles
 
-- Modify the `MONGODB_URL` in your `.env` file to `mongodb://127.0.0.1/<dbname>`
-- Modify the `docker-compose.yml` file's `MONGODB_URL` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
+```bash
+pnpm dev                    # Dev server
+pnpm build && pnpm start    # Build de produccion
 
-## How it works
+# Payload
+pnpm generate:types         # Regenerar payload-types.ts (despues de cambiar schemas)
+pnpm generate:importmap     # Regenerar importMap (despues de agregar componentes al admin)
+pnpm payload migrate:create --name <nombre>  # Crear migracion
+pnpm payload migrate        # Ejecutar migraciones pendientes
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+# Testing
+pnpm test:int               # Tests de integracion (Vitest)
+pnpm test:e2e               # Tests e2e (Playwright)
 
-### Collections
+# Otros
+npx tsc --noEmit            # Verificar tipos sin compilar
+```
 
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
+## Checklist para cambios comunes
 
-- #### Users (Authentication)
+### Agregar un campo a una coleccion
+1. Editar el archivo en `src/collections/`
+2. `pnpm generate:types`
+3. `pnpm payload migrate:create --name add-campo-x`
+4. `pnpm payload migrate`
 
-  Users are auth-enabled collections that have access to the admin panel.
+### Agregar un componente al admin de Payload
+1. Crear el componente en `src/components/admin/`
+2. Referenciarlo en `payload.config.ts`
+3. `pnpm generate:importmap`
 
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/main/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
+### Agregar un componente de UI (shadcn)
+```bash
+npx shadcn@latest add <componente>
+```
+Los componentes se instalan en `src/components/ui/`.
 
-- #### Media
+### Crear una nueva server action autenticada
+```ts
+// src/app/(frontend)/(app)/mi-ruta/actions.ts
+'use server'
+import { authActionClient } from '@/lib/safe-actions'
 
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
+export const miAction = authActionClient.action(async ({ ctx }) => {
+  const userId = ctx.user.id  // usuario autenticado
+  // ...
+})
+```
 
-### Docker
-
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
-
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
-
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
-
-## Questions
-
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+### Agregar una ruta protegida nueva
+Agregar el path al `matcher` y a `protectedRoutes` en `src/middleware.ts`.

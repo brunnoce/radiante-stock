@@ -1,18 +1,28 @@
 import React from 'react'
-import './styles.css'
+import { Plus_Jakarta_Sans } from 'next/font/google'
+import { Toaster } from '@/components/ui/sonner'
+import './globals.css'
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+})
 
 export const metadata = {
-  description: 'A blank template using Payload in a Next.js app.',
-  title: 'Payload Blank Template',
+  title: 'Radiante Stock',
+  description: 'Sistema de stock de bebidas',
+  icons: {
+    icon: '/logo.png',
+  },
 }
 
-export default async function RootLayout(props: { children: React.ReactNode }) {
-  const { children } = props
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <main>{children}</main>
+    <html lang="es" className={plusJakarta.variable}>
+      <body className="font-sans antialiased">
+        {children}
+        <Toaster />
       </body>
     </html>
   )
