@@ -1,13 +1,7 @@
+import type { Bebida, User } from '@/payload-types'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -16,88 +10,50 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Search, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
-
-const MOCK_MOVEMENTS = [
-  {
-    id: '1',
-    beverage: 'Fernet Branca',
-    type: 'ingreso' as const,
-    quantity: 6,
-    currentStock: 8,
-    date: '2026-03-08',
-    user: 'Marcos',
-  },
-  {
-    id: '2',
-    beverage: 'Coca-Cola 1.5L',
-    type: 'ingreso' as const,
-    quantity: 24,
-    currentStock: 30,
-    date: '2026-03-08',
-    user: 'Marcos',
-  },
-  {
-    id: '3',
-    beverage: 'Fernet Branca',
-    type: 'egreso' as const,
-    quantity: 6,
-    currentStock: 2,
-    date: '2026-03-07',
-    user: 'Lucas',
-  },
-  {
-    id: '4',
-    beverage: 'Malbec Trumpeter',
-    type: 'egreso' as const,
-    quantity: 3,
-    currentStock: 0,
-    date: '2026-03-07',
-    user: 'Lucas',
-  },
-  {
-    id: '5',
-    beverage: 'Red Bull',
-    type: 'ingreso' as const,
-    quantity: 12,
-    currentStock: 20,
-    date: '2026-03-06',
-    user: 'Brunno',
-  },
-  {
-    id: '6',
-    beverage: 'Campari',
-    type: 'egreso' as const,
-    quantity: 2,
-    currentStock: 3,
-    date: '2026-03-06',
-    user: 'Lucas',
-  },
-  {
-    id: '7',
-    beverage: 'Sprite 1.5L',
-    type: 'ingreso' as const,
-    quantity: 12,
-    currentStock: 24,
-    date: '2026-03-05',
-    user: 'Marcos',
-  },
-  {
-    id: '8',
-    beverage: 'Gancia',
-    type: 'egreso' as const,
-    quantity: 1,
-    currentStock: 5,
-    date: '2026-03-05',
-    user: 'Brunno',
-  },
-]
+import { ArrowUpCircle, ArrowDownCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { getMovimientos } from '@/app/services/movimientos.service'
+import { HistorialFilters } from '@/components/historial-filters'
+import Link from 'next/link'
 
 export const metadata = {
   title: 'Historial - Radiante Stock',
 }
 
-export default function HistorialPage() {
+interface HistorialPageProps {
+  searchParams: Promise<{
+    tipo?: string
+    fecha?: string
+    q?: string
+    page?: string
+  }>
+}
+
+export default async function HistorialPage({ searchParams }: HistorialPageProps) {
+  const params = await searchParams
+  const tipo = params.tipo === 'ingreso' || params.tipo === 'egreso' ? params.tipo : undefined
+  const fecha = params.fecha ?? undefined
+  const query = params.q?.toLowerCase() ?? ''
+  const currentPage = Number(params.page) || 1
+
+  const result = await getMovimientos({ tipo, fecha, page: currentPage, limit: 20 })
+
+  const movimientos = query
+    ? result.docs.filter((mov) => {
+        const bebida = mov.bebida as Bebida
+        return bebida.nombre.toLowerCase().includes(query)
+      })
+    : result.docs
+
+  function buildPageUrl(page: number) {
+    const p = new URLSearchParams()
+    if (tipo) p.set('tipo', tipo)
+    if (fecha) p.set('fecha', fecha)
+    if (query) p.set('q', query)
+    if (page > 1) p.set('page', String(page))
+    const qs = p.toString()
+    return qs ? `/historial?${qs}` : '/historial'
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -105,125 +61,152 @@ export default function HistorialPage() {
         <p className="text-sm text-muted-foreground">Registro de movimientos de stock</p>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Buscar por bebida..." className="pl-9" />
-        </div>
-        <Select>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos</SelectItem>
-            <SelectItem value="ingreso">Ingreso</SelectItem>
-            <SelectItem value="egreso">Egreso</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input type="date" className="w-full sm:w-[160px]" />
+      <HistorialFilters />
+
+      {movimientos.length === 0 && (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          No se encontraron movimientos
+        </p>
+      )}
+
+      <div className="hidden md:block">
+        {movimientos.length > 0 && (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Bebida</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Usuario</TableHead>
+                    <TableHead className="text-right">Cantidad</TableHead>
+                    <TableHead className="text-right">Stock resultante</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {movimientos.map((mov) => {
+                    const bebida = mov.bebida as Bebida
+                    const usuario = mov.usuario as User
+                    return (
+                      <TableRow key={mov.id}>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(mov.createdAt)}
+                        </TableCell>
+                        <TableCell className="font-medium">{bebida.nombre}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`gap-1 ${mov.tipo === 'ingreso' ? 'border-green-500/50 text-green-500' : 'border-red-400/50 text-red-400'}`}
+                          >
+                            {mov.tipo === 'ingreso' ? (
+                              <ArrowUpCircle className="h-3 w-3" />
+                            ) : (
+                              <ArrowDownCircle className="h-3 w-3" />
+                            )}
+                            {mov.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {usuario.name}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <span className={mov.tipo === 'ingreso' ? 'text-green-500' : 'text-red-400'}>
+                            {mov.tipo === 'ingreso' ? '+' : '-'}
+                            {mov.cantidad}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-medium">
+                          {mov.stockResultante}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Tabla desktop */}
-      <div className="hidden md:block">
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Bebida</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Usuario</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead>
-                  <TableHead className="text-right">Stock actual</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {MOCK_MOVEMENTS.map((mov) => (
-                  <TableRow key={mov.id}>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(mov.date)}
-                    </TableCell>
-                    <TableCell className="font-medium">{mov.beverage}</TableCell>
-                    <TableCell>
+      <div className="space-y-2 md:hidden">
+        {movimientos.map((mov) => {
+          const bebida = mov.bebida as Bebida
+          const usuario = mov.usuario as User
+          return (
+            <Card key={mov.id}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{bebida.nombre}</p>
+                    <div className="mt-1 flex items-center gap-2">
                       <Badge
                         variant="outline"
-                        className={`gap-1 ${mov.type === 'ingreso' ? 'border-green-500/50 text-green-500' : 'border-red-400/50 text-red-400'}`}
+                        className={`gap-1 text-xs ${mov.tipo === 'ingreso' ? 'border-green-500/50 text-green-500' : 'border-red-400/50 text-red-400'}`}
                       >
-                        {mov.type === 'ingreso' ? (
+                        {mov.tipo === 'ingreso' ? (
                           <ArrowUpCircle className="h-3 w-3" />
                         ) : (
                           <ArrowDownCircle className="h-3 w-3" />
                         )}
-                        {mov.type === 'ingreso' ? 'Ingreso' : 'Egreso'}
+                        {mov.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {mov.user}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span className={mov.type === 'ingreso' ? 'text-green-500' : 'text-red-400'}>
-                        {mov.type === 'ingreso' ? '+' : '-'}
-                        {mov.quantity}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
-                      {mov.currentStock}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Cards mobile */}
-      <div className="space-y-2 md:hidden">
-        {MOCK_MOVEMENTS.map((mov) => (
-          <Card key={mov.id}>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{mov.beverage}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`gap-1 text-xs ${mov.type === 'ingreso' ? 'border-green-500/50 text-green-500' : 'border-red-400/50 text-red-400'}`}
+                      <span className="text-xs text-muted-foreground">{formatDate(mov.createdAt)}</span>
+                      <span className="text-xs text-muted-foreground">· {usuario.name}</span>
+                    </div>
+                  </div>
+                  <div className="ml-3 text-right">
+                    <span
+                      className={`text-lg font-bold tabular-nums ${
+                        mov.tipo === 'ingreso' ? 'text-green-500' : 'text-red-400'
+                      }`}
                     >
-                      {mov.type === 'ingreso' ? (
-                        <ArrowUpCircle className="h-3 w-3" />
-                      ) : (
-                        <ArrowDownCircle className="h-3 w-3" />
-                      )}
-                      {mov.type === 'ingreso' ? 'Ingreso' : 'Egreso'}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{formatDate(mov.date)}</span>
-                    <span className="text-xs text-muted-foreground">· {mov.user}</span>
+                      {mov.tipo === 'ingreso' ? '+' : '-'}
+                      {mov.cantidad}
+                    </span>
+                    <p className="text-xs text-muted-foreground">Stock: {mov.stockResultante}</p>
                   </div>
                 </div>
-                <div className="ml-3 text-right">
-                  <span
-                    className={`text-lg font-bold tabular-nums ${
-                      mov.type === 'ingreso' ? 'text-green-500' : 'text-red-400'
-                    }`}
-                  >
-                    {mov.type === 'ingreso' ? '+' : '-'}
-                    {mov.quantity}
-                  </span>
-                  <p className="text-xs text-muted-foreground">Stock: {mov.currentStock}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
+
+      {result.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          {currentPage > 1 ? (
+            <Button variant="outline" size="icon" className="h-8 w-8" asChild>
+              <Link href={buildPageUrl(currentPage - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <span className="text-sm text-muted-foreground">
+            {currentPage} / {result.totalPages}
+          </span>
+          {currentPage < result.totalPages ? (
+            <Button variant="outline" size="icon" className="h-8 w-8" asChild>
+              <Link href={buildPageUrl(currentPage + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 function formatDate(dateStr: string) {
-  const date = new Date(dateStr + 'T12:00:00')
+  const date = new Date(dateStr)
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
 }

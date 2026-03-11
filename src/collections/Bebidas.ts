@@ -28,5 +28,13 @@ export const Bebidas: CollectionConfig = {
       defaultValue: 0,
       min: 0,
     },
+    {
+      name: 'stockMinimo',
+      label: 'Stock mínimo',
+      type: 'number',
+      required: true,
+      defaultValue: 3,
+      min: 0,
+    },
   ],
 }

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useAction } from 'next-safe-action/hooks'
+import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,10 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Trash2, PackagePlus } from 'lucide-react'
+import { Plus, Trash2, PackagePlus, Loader2 } from 'lucide-react'
+import { bulkIngresoAction } from '@/app/(frontend)/(app)/stock/actions'
 
 type Beverage = {
-  id: string
+  id: number
   name: string
   category: string
   currentStock: number
@@ -27,6 +30,7 @@ type IngresoLine = {
 
 export function BulkIngresoForm({ beverages }: { beverages: Beverage[] }) {
   const [lines, setLines] = useState<IngresoLine[]>([{ beverageId: '', quantity: '' }])
+  const { executeAsync, isExecuting } = useAction(bulkIngresoAction)
 
   function addLine() {
     setLines((prev) => [...prev, { beverageId: '', quantity: '' }])
@@ -38,6 +42,34 @@ export function BulkIngresoForm({ beverages }: { beverages: Beverage[] }) {
 
   function updateLine(index: number, field: keyof IngresoLine, value: string) {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, [field]: value } : line)))
+  }
+
+  async function handleSubmit() {
+    const validLines = lines.filter(
+      (line) => line.beverageId !== '' && line.quantity !== '' && Number(line.quantity) > 0,
+    )
+
+    if (validLines.length === 0) {
+      toast.error('Completá al menos una línea con bebida y cantidad')
+      return
+    }
+
+    const result = await executeAsync({
+      lines: validLines.map((line) => ({
+        bebidaId: Number(line.beverageId),
+        cantidad: Number(line.quantity),
+      })),
+    })
+
+    if (result?.serverError) {
+      toast.error(result.serverError)
+      return
+    }
+
+    if (result?.data) {
+      toast.success(`Se registraron ${result.data.count} ingresos`)
+      setLines([{ beverageId: '', quantity: '' }])
+    }
   }
 
   return (
@@ -54,7 +86,7 @@ export function BulkIngresoForm({ beverages }: { beverages: Beverage[] }) {
               </SelectTrigger>
               <SelectContent>
                 {beverages.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
+                  <SelectItem key={b.id} value={String(b.id)}>
                     {b.name}
                   </SelectItem>
                 ))}
@@ -85,8 +117,13 @@ export function BulkIngresoForm({ beverages }: { beverages: Beverage[] }) {
             <Plus className="h-4 w-4" />
             Agregar línea
           </Button>
-          <Button size="sm" className="ml-auto gap-1">
-            <PackagePlus className="h-4 w-4" />
+          <Button
+            size="sm"
+            className="ml-auto gap-1"
+            onClick={handleSubmit}
+            disabled={isExecuting}
+          >
+            {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
             Registrar ingreso
           </Button>
         </div>

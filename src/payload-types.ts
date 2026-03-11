@@ -191,6 +191,7 @@ export interface Bebida {
   nombre: string;
   categoria: number | Categoria;
   stock: number;
+  stockMinimo: number;
   updatedAt: string;
   createdAt: string;
 }
@@ -354,6 +355,7 @@ export interface BebidasSelect<T extends boolean = true> {
   nombre?: T;
   categoria?: T;
   stock?: T;
+  stockMinimo?: T;
   updatedAt?: T;
   createdAt?: T;
 }

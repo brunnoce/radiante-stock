@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useAction } from 'next-safe-action/hooks'
+import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,15 +17,17 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  Loader2,
   Minus,
   Plus,
   Save,
   Search,
   Undo2,
 } from 'lucide-react'
+import { stockAdjustmentAction } from '@/app/(frontend)/(app)/stock/actions'
 
 type Beverage = {
-  id: string
+  id: number
   name: string
   category: string
   currentStock: number
@@ -37,10 +41,11 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
     [beverages],
   )
 
-  const [stocks, setStocks] = useState<Record<string, number>>(initialStocks)
+  const [stocks, setStocks] = useState<Record<number, number>>(initialStocks)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [page, setPage] = useState(1)
+  const { executeAsync, isExecuting } = useAction(stockAdjustmentAction)
 
   const categories = useMemo(
     () => [...new Set(beverages.map((b) => b.category))].sort(),
@@ -60,7 +65,7 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
   const paginated = filtered.slice((safePageNumber - 1) * PAGE_SIZE, safePageNumber * PAGE_SIZE)
 
   const changes = useMemo(() => {
-    const diffs: { id: string; name: string; from: number; to: number }[] = []
+    const diffs: { id: number; name: string; from: number; to: number }[] = []
     for (const b of beverages) {
       const current = stocks[b.id] ?? 0
       if (current !== b.currentStock) {
@@ -72,11 +77,11 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
 
   const hasChanges = changes.length > 0
 
-  function handleIncrement(id: string) {
+  function handleIncrement(id: number) {
     setStocks((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }))
   }
 
-  function handleDecrement(id: string) {
+  function handleDecrement(id: number) {
     setStocks((prev) => ({
       ...prev,
       [id]: Math.max(0, (prev[id] ?? 0) - 1),
@@ -87,8 +92,23 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
     setStocks(initialStocks)
   }
 
-  function handleSave() {
-    console.log('Guardando cambios:', changes)
+  async function handleSave() {
+    const result = await executeAsync({
+      changes: changes.map((c) => ({
+        bebidaId: c.id,
+        from: c.from,
+        to: c.to,
+      })),
+    })
+
+    if (result?.serverError) {
+      toast.error(result.serverError)
+      return
+    }
+
+    if (result?.data) {
+      toast.success(`Se guardaron ${result.data.count} ajustes de stock`)
+    }
   }
 
   function handleSearchChange(value: string) {
@@ -147,7 +167,7 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
                     size="icon"
                     className="h-8 w-8"
                     onClick={() => handleDecrement(beverage.id)}
-                    disabled={stock === 0}
+                    disabled={stock === 0 || isExecuting}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
@@ -161,6 +181,7 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
                     size="icon"
                     className="h-8 w-8"
                     onClick={() => handleIncrement(beverage.id)}
+                    disabled={isExecuting}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -209,12 +230,23 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
             {changes.length} {changes.length === 1 ? 'bebida modificada' : 'bebidas modificadas'}
           </p>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" className="gap-1" onClick={handleReset}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1"
+              onClick={handleReset}
+              disabled={isExecuting}
+            >
               <Undo2 className="h-4 w-4" />
               Deshacer
             </Button>
-            <Button size="sm" className="gap-1" onClick={handleSave}>
-              <Save className="h-4 w-4" />
+            <Button
+              size="sm"
+              className="gap-1"
+              onClick={handleSave}
+              disabled={isExecuting}
+            >
+              {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Guardar cambios
             </Button>
           </div>
