@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -10,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, AlertTriangle } from 'lucide-react'
+import { Search, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type BeverageItem = {
   id: number
@@ -38,6 +39,7 @@ export function BeverageList({
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('todas')
   const [sort, setSort] = useState<SortOption>('name-asc')
+  const [page, setPage] = useState(1)
 
   const categoryName = useMemo(() => {
     if (categoryFilter === 'todas') return null
@@ -65,7 +67,19 @@ export function BeverageList({
     })
 
     return result
-  }, [bebidas, categorias, search, categoryFilter, sort])
+  }, [bebidas, categoryName, search, sort])
+
+  const PAGE_SIZE = 10
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  function handleFilterChange<T>(setter: (v: T) => void) {
+    return (value: T) => {
+      setter(value)
+      setPage(1)
+    }
+  }
 
   return (
     <>
@@ -76,10 +90,10 @@ export function BeverageList({
             placeholder="Buscar bebida..."
             className="pl-9"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleFilterChange(setSearch)(e.target.value)}
           />
         </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select value={categoryFilter} onValueChange={handleFilterChange(setCategoryFilter)}>
           <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Categoría" />
           </SelectTrigger>
@@ -92,7 +106,7 @@ export function BeverageList({
             ))}
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={(v) => setSort(v as SortOption)}>
+        <Select value={sort} onValueChange={(v) => handleFilterChange(setSort)(v as SortOption)}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Ordenar por" />
           </SelectTrigger>
@@ -111,7 +125,7 @@ export function BeverageList({
             No se encontraron bebidas
           </p>
         )}
-        {filtered.map((bebida) => {
+        {paginated.map((bebida) => {
           const status = getStockStatus(bebida.stock, bebida.stockMinimo)
           return (
             <div
@@ -154,6 +168,32 @@ export function BeverageList({
           )
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={safePage === 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {safePage} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={safePage === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </>
   )
 }

@@ -12,7 +12,7 @@ const links = [
   { href: '/', label: 'Vista General' },
   { href: '/stock', label: 'Gestión' },
   { href: '/historial', label: 'Historial' },
-  { href: '/admin', label: 'Administración' },
+  { href: '/admin-panel', label: 'Administración' },
 ]
 
 export function Nav() {

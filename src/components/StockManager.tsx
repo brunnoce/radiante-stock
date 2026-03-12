@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAction } from 'next-safe-action/hooks'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -42,6 +42,11 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
   )
 
   const [stocks, setStocks] = useState<Record<number, number>>(initialStocks)
+
+  useEffect(() => {
+    setStocks(initialStocks)
+  }, [initialStocks])
+
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [page, setPage] = useState(1)

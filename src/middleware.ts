@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   const jwt = token ? decodeJWT(token) : null
   const isValid = jwt && jwt.exp * 1000 > Date.now()
 
-  const protectedRoutes = ['/', '/stock', '/historial']
+  const protectedRoutes = ['/', '/stock', '/historial', '/admin-panel']
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   )
@@ -33,5 +33,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/stock/:path*', '/historial/:path*', '/login'],
+  matcher: ['/', '/stock/:path*', '/historial/:path*', '/admin-panel/:path*', '/login'],
 }
