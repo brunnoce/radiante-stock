@@ -32,7 +32,11 @@ export default buildConfig({
   },
   db: postgresAdapter({
     pool: {
-      connectionString: process.env.DATABASE_URL || '',
+      connectionString: process.env.DATABASE_URL ?? (() => { throw new Error('DATABASE_URL env var is required') })(),
+      min: 1,
+      max: 10,
+      idleTimeoutMillis: 60_000,
+      connectionTimeoutMillis: 10_000,
     },
   }),
   sharp,

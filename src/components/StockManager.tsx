@@ -93,6 +93,17 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
     }))
   }
 
+  function handleStockInput(id: number, value: string) {
+    const parsed = parseInt(value, 10)
+    if (value === '') {
+      setStocks((prev) => ({ ...prev, [id]: 0 }))
+      return
+    }
+    if (!isNaN(parsed) && parsed >= 0) {
+      setStocks((prev) => ({ ...prev, [id]: parsed }))
+    }
+  }
+
   function handleReset() {
     setStocks(initialStocks)
   }
@@ -176,11 +187,14 @@ export function StockManager({ beverages }: { beverages: Beverage[] }) {
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
-                  <span
-                    className={`w-8 text-center text-lg font-bold tabular-nums ${changed ? 'text-primary' : ''}`}
-                  >
-                    {stock}
-                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={stock}
+                    onChange={(e) => handleStockInput(beverage.id, e.target.value)}
+                    disabled={isExecuting}
+                    className={`h-8 w-14 text-center text-lg font-bold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${changed ? 'text-primary' : ''}`}
+                  />
                   <Button
                     variant="outline"
                     size="icon"

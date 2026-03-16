@@ -138,9 +138,9 @@ export function BeverageList({
                     : 'border-border'
               }`}
             >
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <p className="truncate font-medium">{bebida.nombre}</p>
-                <Badge variant="outline" className="shrink-0 text-xs">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium sm:text-base">{bebida.nombre}</p>
+                <Badge variant="outline" className="mt-1 text-xs">
                   {bebida.categoria}
                 </Badge>
               </div>
